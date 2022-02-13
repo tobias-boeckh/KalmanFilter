@@ -1,6 +1,7 @@
 import math
 from math import sin, cos, tan, asin, acos, atan, atan2, sqrt, pi
-import numpy as np
+#import numpy as np
+from auto_diff import true_np as np
 import copy
 import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
