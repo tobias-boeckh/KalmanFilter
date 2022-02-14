@@ -14,3 +14,7 @@ def CallSomething():
 
     sNewer = sNew.propagateTo(10.0)
     print(p.projectedDistance(sNewer), p.intersectionDistance(sNewer))    
+
+    sPlane = s.propagateTo(p)
+    planes = [p, Plane(-1000), Plane(1500)]
+    sPlanes = s.propagateTo(planes)

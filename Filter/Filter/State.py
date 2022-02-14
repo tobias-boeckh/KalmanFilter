@@ -197,7 +197,20 @@ class State:
 
     @staticmethod
     def adaptiveRKToPlane(rk_in, planes, tolerance):
-        pass
+        if isinstance(planes, list):
+            targets = planes
+        else:
+            targets = [planes]
+
+        # Only planes in front of start position are valid targets
+        validTargets = []
+        for plane in targets:
+            if plane.intersectionDistance(rk_in) < 0: continue
+            validTargets += [plane]
+
+        print("Found ", len(validTargets), " valid target planes")
+
+        return rk_in.copy()
 
     @staticmethod
     def adaptiveRKToDistance(rk_in, distance, tolerance):
