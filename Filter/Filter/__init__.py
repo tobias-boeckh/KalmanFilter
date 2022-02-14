@@ -24,3 +24,7 @@ def CallSomething():
     sPlanes = s.propagateTo(planes)
     print(sPlanes.state, sPlanes.z)
     print(p.projectedDistance(sPlanes), p.intersectionDistance(sPlanes))
+    p2 = Plane(-1000)
+    sBack = s.propagateTo(planes, forward = False)
+    print(sBack.state, sBack.z)
+    print(p2.projectedDistance(sBack), p2.intersectionDistance(sBack))

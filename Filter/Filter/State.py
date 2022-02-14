@@ -173,7 +173,7 @@ class State:
         if verbose : print("cov_out:", new.covariance)        
         return new    
     
-    def propagateTo(self, where, tolerance = 1.0e-6, verbose = False):
+    def propagateTo(self, where, forward = True, tolerance = 1.0e-6, verbose = False):
         # set up an RK state vector to propagate
         if verbose : print("kf_in:", self.state, self.z)
         rk_in, kToG_jacobian = self.rkInitialize()
@@ -184,7 +184,7 @@ class State:
         # propagate
         with auto_diff.AutoDiff(rk_in) as rk_in:
             if isinstance(where, (list, Plane)):
-                rk_eval = State.adaptiveRKToPlane(rk_in, where, tolerance)
+                rk_eval = State.adaptiveRKToPlane(rk_in, where, forward, tolerance)
             else: # 'where' is a distance
                 rk_eval = State.adaptiveRKToDistance(rk_in, where, tolerance)
             rk_out, rk_jacobian = auto_diff.get_value_and_jacobian(rk_eval)
@@ -196,7 +196,9 @@ class State:
         return self.rkFinalize(rk_out, rk_jacobian, kToG_jacobian, verbose)
 
     @staticmethod
-    def adaptiveRKToPlane(rk_in, planes, tolerance):
+    def adaptiveRKToPlane(rk_in, planes, forward, tolerance):
+        intersectSlopMm = 1.0e-3  # 1 micron
+
         if isinstance(planes, list):
             targets = planes
         else:
@@ -204,20 +206,26 @@ class State:
 
         # Only planes in front of start position are valid targets
         validTargets = []
-        minimumDistance = np.array([np.inf])
+        if forward:
+            delta = np.array([np.inf])
+        else:
+            delta = np.array([-np.inf])
+
         for plane in targets:
             d = plane.intersectionDistance(rk_in)
-            if d < 0: continue
+            if (d < intersectSlopMm and forward) or (d > -intersectSlopMm and not forward) : continue
             validTargets += [plane]
-            if d < minimumDistance[0]: minimumDistance[0] = d
+            if forward and d < delta[0] : 
+                delta[0] = d
+            elif not forward and d > delta[0] :
+                delta[0] = d
 
-        print("Found ", len(validTargets), " valid target planes with minimum distance ", minimumDistance.val[0])
+        print("Found ", len(validTargets), " valid target planes with minimum distance ", delta.val[0])
 
-        step = minimumDistance[0]
+        step = delta[0]
         rkNow = rk_in.copy()
         bCache = {"first": np.zeros(3), "next": np.zeros(3), "firstStep": True}
-        while np.abs(minimumDistance[0]) > 1.0e-3 : # 1 micron slop
-#            print("current z:", rkNow.val[2,0])
+        while np.abs(delta[0]) > intersectSlopMm : 
             # try step with current size
             rkNext, error = State.rkStep(rkNow, step, bCache)
             firstStep = False
@@ -236,11 +244,16 @@ class State:
             # check termination condition
             for plane in validTargets:
                 d = plane.intersectionDistance(rkNow)
-                if d < minimumDistance[0]: minimumDistance[0] = d
-            if minimumDistance[0] < step: step = minimumDistance[0]
-#            print("Current minimum:", minimumDistance.val[0])
+                if forward and d < delta[0]: 
+                    delta[0] = d
+                elif not forward and d > delta[0]:
+                    delta[0] = d
+            if forward and delta[0] < step: 
+                step = delta[0]
+            elif not forward and delta[0] > step:
+                step = delta[0]
 
-        print("Final distance to target plane: ", minimumDistance.val[0])
+        print("Final distance to target plane: ", delta.val[0])
         return rkNow
 
     @staticmethod
