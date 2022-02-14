@@ -4,6 +4,7 @@ import copy
 import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
 from BField import Field
+from Filter.Plane import Plane
 
 # Adaptive RK code stolen from ATLAS: ATL-SOFT-PUB-2009-001
 class State:
@@ -102,6 +103,15 @@ class State:
         plt.ylim(self[State.v]-wid, self[State.v]+wid)
         plt.show()
         
+    def getPosition(self):
+        return np.array([self[State.u], self[State.v], self.z])
+
+    def getDirection(self):
+        return np.array([np.sin(np.arctan(self[State.tanAlpha])),
+                         np.cos(np.arctan(self[State.tanAlpha])) * np.sin(self[State.psi]),
+                         np.cos(np.arctan(self[State.tanAlpha])) * np.cos(self[State.psi])])
+
+    @staticmethod
     def getGlobalState(state, z):
         x = np.array([state[State.u, 0], state[State.v, 0], z])
         v = np.array([np.sin(np.arctan(state[State.tanAlpha, 0])),
@@ -109,6 +119,7 @@ class State:
                          np.cos(np.arctan(state[State.tanAlpha, 0])) * np.cos(state[State.psi, 0])])
         return np.array([[x[0]], [x[1]], [x[2]], [v[0]], [v[1]], [v[2]], [state[State.qOverP, 0]]])
         
+    @staticmethod
     def getKalmanState(globalState):
         # work-around missing arctan2
         if globalState[5, 0] != 0:
@@ -162,7 +173,7 @@ class State:
         if verbose : print("cov_out:", new.covariance)        
         return new    
     
-    def propagateToDistance(self, distance, tolerance, verbose = False):
+    def propagateTo(self, where, tolerance = 1.0e-6, verbose = False):
         # set up an RK state vector to propagate
         if verbose : print("kf_in:", self.state, self.z)
         rk_in, kToG_jacobian = self.rkInitialize()
@@ -172,7 +183,10 @@ class State:
             
         # propagate
         with auto_diff.AutoDiff(rk_in) as rk_in:
-            rk_eval = State.adaptiveRKToDistance(rk_in, distance, tolerance)
+            if isinstance(where, (list, Plane)):
+                rk_eval = State.adaptiveRKToPlane(rk_in, where, tolerance)
+            else: # 'where' is a distance
+                rk_eval = State.adaptiveRKToDistance(rk_in, where, tolerance)
             rk_out, rk_jacobian = auto_diff.get_value_and_jacobian(rk_eval)
         if verbose :
             print("rk_out:", rk_out)
@@ -180,7 +194,12 @@ class State:
         
         # return new, extrapolated kalman state object
         return self.rkFinalize(rk_out, rk_jacobian, kToG_jacobian, verbose)
-            
+
+    @staticmethod
+    def adaptiveRKToPlane(rk_in, planes, tolerance):
+        pass
+
+    @staticmethod
     def adaptiveRKToDistance(rk_in, distance, tolerance):
         step = distance
         where = 0
@@ -207,6 +226,7 @@ class State:
                 
         return rkNow
     
+    @staticmethod
     def rkStep(rk_in, step, bCache):
         initialPos = np.array([rk_in[0, 0], rk_in[1, 0], rk_in[2, 0]])
         initialDir = np.array([rk_in[3, 0], rk_in[4, 0], rk_in[5, 0]])
@@ -247,8 +267,10 @@ class State:
         
         return np.array([[finalPos[0]],[finalPos[1]],[finalPos[2]],[finalDir[0]],[finalDir[1]],[finalDir[2]],[rk_in[6, 0]]]), errorSafe
 
+    @staticmethod
     def dot(v1, v2):
         return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2]
     
+    @staticmethod
     def cross(v1, v2):
         return np.array([v1[1] * v2[2] - v1[2] * v2[1], v1[2] * v2[0] - v1[0] * v2[2], v1[0] * v2[1] - v1[1] * v2[0]])
