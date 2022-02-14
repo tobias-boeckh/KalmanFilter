@@ -204,13 +204,44 @@ class State:
 
         # Only planes in front of start position are valid targets
         validTargets = []
+        minimumDistance = np.array([np.inf])
         for plane in targets:
-            if plane.intersectionDistance(rk_in) < 0: continue
+            d = plane.intersectionDistance(rk_in)
+            if d < 0: continue
             validTargets += [plane]
+            if d < minimumDistance[0]: minimumDistance[0] = d
 
-        print("Found ", len(validTargets), " valid target planes")
+        print("Found ", len(validTargets), " valid target planes with minimum distance ", minimumDistance.val[0])
 
-        return rk_in.copy()
+        step = minimumDistance[0]
+        rkNow = rk_in.copy()
+        bCache = {"first": np.zeros(3), "next": np.zeros(3), "firstStep": True}
+        while np.abs(minimumDistance[0]) > 1.0e-3 : # 1 micron slop
+#            print("current z:", rkNow.val[2,0])
+            # try step with current size
+            rkNext, error = State.rkStep(rkNow, step, bCache)
+            firstStep = False
+
+            # compute next stepsize
+            lastStep = step
+            step = step * min(max(0.25, np.sqrt(tolerance/error)), 4)
+
+            # check tolerance
+            if (error > 4 * tolerance): continue
+                
+            # step succeeded
+            rkNow = rkNext.copy()
+            bCache["first"] = bCache["next"].copy()
+    
+            # check termination condition
+            for plane in validTargets:
+                d = plane.intersectionDistance(rkNow)
+                if d < minimumDistance[0]: minimumDistance[0] = d
+            if minimumDistance[0] < step: step = minimumDistance[0]
+#            print("Current minimum:", minimumDistance.val[0])
+
+        print("Final distance to target plane: ", minimumDistance.val[0])
+        return rkNow
 
     @staticmethod
     def adaptiveRKToDistance(rk_in, distance, tolerance):
