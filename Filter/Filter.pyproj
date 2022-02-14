@@ -22,6 +22,7 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Filter\Hit.py" />
     <Compile Include="Filter\Plane.py" />
     <Compile Include="Filter\State.py" />
     <Compile Include="Filter\__init__.py">

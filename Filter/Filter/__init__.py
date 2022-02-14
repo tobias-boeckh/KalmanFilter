@@ -1,6 +1,7 @@
 from BField import Field
 from Filter.State import State
 from Filter.Plane import Plane
+from Filter.Hit import Hit
 import numpy as np
 
 def CallSomething():
@@ -11,6 +12,7 @@ def CallSomething():
     sNew = s.propagateTo(1000.0)
     print(sNew.state, sNew.z)
     print(p.projectedDistance(sNew), p.intersectionDistance(sNew))
+    h = Hit(sNew)
 
     sNewer = sNew.propagateTo(10.0)
     print(p.projectedDistance(sNewer), p.intersectionDistance(sNewer))    
