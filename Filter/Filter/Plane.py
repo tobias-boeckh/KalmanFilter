@@ -2,6 +2,7 @@ import numpy as np
 from numpy.lib.arraysetops import isin
 #from Filter.State import State
 import Filter
+import auto_diff
 
 class Plane(object):
     
@@ -12,9 +13,11 @@ class Plane(object):
     # computes distance from state to nearest point on (presumed infinite) plane; non-negative
     def projectedDistance(self, state):
         if isinstance(state, Filter.State):
-            return(np.abs(np.dot(self.normal, self.p - state.getPosition())))
+            returnVal = np.abs(np.dot(self.normal, self.p - state.getPosition()))
         else:
-            return(np.abs(Plane.dot(self.normal, self.p - np.array([state[0, 0], state[1, 0], state[2, 0]]))))
+            dotProd = np.array([Plane.dot(self.normal, self.p - np.array([state[0, 0], state[1, 0], state[2, 0]]))])
+            returnVal = np.abs(dotProd[0])
+        return returnVal
 
     # computes straight-line distance to intersection along current direction; may be negative
     def intersectionDistance(self, state):

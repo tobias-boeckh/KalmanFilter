@@ -28,3 +28,21 @@ def CallSomething():
     sBack = s.propagateTo(planes, forward = False)
     print(sBack.state, sBack.z)
     print(p2.projectedDistance(sBack), p2.intersectionDistance(sBack))
+
+def GenDetectors(zPositions):
+    detectors = []
+    for z in zPositions:
+        detectors += [Plane(z)]
+    return detectors
+
+
+def GenHits(truthState, zDetectors):
+    hits = []
+    detectors = GenDetectors(zDetectors)
+
+    sNow = truthState
+    for detector in detectors:
+        sNext = sNow.propagateTo(detector)
+        hits += [Hit(sNext)]
+        sNow = sNext
+    return hits
