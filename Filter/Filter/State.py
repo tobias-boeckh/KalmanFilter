@@ -32,8 +32,8 @@ class State:
                  qOverPUncertainty = 1.0):
         self.history = np.array([])
         self.pathLength = 0
-        self.J = np.identity(n = 5)
         self.absCharge = absCharge
+        self.chi2 = np.inf
         
         # translate linear fit to state vector variables
 
@@ -211,8 +211,10 @@ class State:
         else:
             delta = np.array([-np.inf])
 
+        localPlane =[]
         for plane in targets:
             d = plane.intersectionDistance(rk_in)
+            if abs(d) < intersectSlopMm : localPlane = [plane]
             if (d < intersectSlopMm and forward) or (d > -intersectSlopMm and not forward) : continue
             validTargets += [plane]
             if forward and d < delta[0] : 
@@ -220,12 +222,15 @@ class State:
             elif not forward and d > delta[0] :
                 delta[0] = d
 
+        if len(validTargets) == 0 and len(localPlane) > 0:
+            validTargets += localPlane
+            delta[0] = 0
         print("Found ", len(validTargets), " valid target planes with minimum distance ", delta.val[0])
 
         step = delta[0]
         rkNow = rk_in.copy()
         bCache = {"first": np.zeros(3), "next": np.zeros(3), "firstStep": True}
-        while np.abs(delta[0]) > intersectSlopMm : 
+        while delta[0] > intersectSlopMm or delta[0] < -intersectSlopMm :
             # try step with current size
             rkNext, error = State.rkStep(rkNow, step, bCache)
             firstStep = False
@@ -331,3 +336,42 @@ class State:
     @staticmethod
     def cross(v1, v2):
         return np.array([v1[1] * v2[2] - v1[2] * v2[1], v1[2] * v2[0] - v1[0] * v2[2], v1[0] * v2[1] - v1[1] * v2[0]])
+
+    @staticmethod
+    def filter(theState, theHits, verbose = False):
+        hProjection = np.matrix([[1, 0, 0, 0, 0], [0, 1, 0, 0, 0]])
+        if verbose :
+            print("Input state: \n", theState.state.T, "z =", theState.z)
+        state = copy.deepcopy(theState)
+        chi2 = 0
+        for hit in theHits:
+            zHit = hit.z
+            prediction = state.propagateTo(Plane(zHit), forward = False)
+            if verbose :
+                print("Predicted state: \n", prediction.state.T, "z = ", prediction.z)
+                print("Predicted cov: \n", prediction.covariance)
+            resPrediction = hit.measurement - np.matmul(hProjection, prediction.state)
+            covResPrediction = hit.covariance + np.matmul(hProjection, np.matmul(prediction.covariance, hProjection.T))
+        
+            covFilteredInv = np.matmul(hProjection.T, np.matmul(hit.covariance.I, hProjection)) + prediction.covariance.I
+            covFiltered = covFilteredInv.I
+            state.z = zHit
+            state.state = np.matmul(covFiltered, np.matmul(prediction.covariance.I, prediction.state) + np.matmul(hProjection.T, np.matmul(hit.covariance.I, hit.measurement)))
+            state.covariance = covFiltered
+            if verbose:
+                print("Filtered state: \n", state.state.T, "z = ",state.z)
+                print("Filtered cov: \n", state.covariance)
+                print("x (pred, meas, filt):", prediction[State.u], hit.measurement[0,0], state[State.u])
+                print("y (pred, meas, filt):", prediction[State.v], hit.measurement[1,0], state[State.v])
+
+
+            resFiltered = hit.measurement - np.matmul(hProjection, state.state)
+            chi2Add = np.matmul(resFiltered.T, np.matmul(hit.covariance.I, resFiltered)) + np.matmul((state.state.T - prediction.state.T),np.matmul(prediction.covariance.I, state.state - prediction.state))
+            chi2 += chi2Add
+    
+        if verbose :
+            print("Fit pt, Chi2: ", state.PGeV(), chi2[0,0])
+        
+        state.chi2 = chi2[0,0]
+        return state
+    

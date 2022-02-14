@@ -16,7 +16,8 @@ class Plane(object):
             returnVal = np.abs(np.dot(self.normal, self.p - state.getPosition()))
         else:
             dotProd = np.array([Plane.dot(self.normal, self.p - np.array([state[0, 0], state[1, 0], state[2, 0]]))])
-            returnVal = np.abs(dotProd[0])
+            returnVal = dotProd[0] # auto_diff gags on abs here, so avoid it
+            if returnVal < 0: return -returnVal
         return returnVal
 
     # computes straight-line distance to intersection along current direction; may be negative

@@ -46,3 +46,12 @@ def GenHits(truthState, zDetectors):
         hits += [Hit(sNext)]
         sNow = sNext
     return hits
+
+def RunFilter():
+    truthState = State(line = np.array([2, 1, 0.005, 0.0075]), zLine = -1, signedMomentumGeV = 100)
+    detectors =[0, 50, 100, 1150, 1200, 1250, 2300, 2350, 2400]
+    hits = GenHits(truthState, detectors)
+    result = Hit.lineFit(hits)
+    seedState = State(line = result.x, lineCov = result.hess_inv, zLine = detectors[-1])
+    recoState = State.filter(seedState, reversed(hits))
+    return recoState, truthState
