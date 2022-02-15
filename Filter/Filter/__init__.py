@@ -1,3 +1,4 @@
+from numpy.random.mtrand import normal
 from BField import Field
 from Filter.State import State
 from Filter.Plane import Plane
@@ -47,11 +48,16 @@ def GenHits(truthState, zDetectors):
         sNow = sNext
     return hits
 
-def RunFilter():
-    truthState = State(line = np.array([2, 1, 0.005, 0.0075]), zLine = -1, signedMomentumGeV = 100)
-    detectors =[0, 50, 100, 1150, 1200, 1250, 2300, 2350, 2400]
+def RunFilter(spatialWidthMm = 25, angularWidthRadians = 0.01, eGeV = 100.0):
+    truthState = State(line = np.array([np.random.normal(0, spatialWidthMm), 
+                                        np.random.normal(0, spatialWidthMm), 
+                                        np.random.normal(0, angularWidthRadians),
+                                        np.random.normal(0, angularWidthRadians)]), 
+                       zLine = 0, 
+                       signedMomentumGeV = eGeV)
+    detectors =[16, 47, 78, 1207, 1238, 1269, 2398, 2429, 2460]
     hits = GenHits(truthState, detectors)
     result = Hit.lineFit(hits)
-    seedState = State(line = result.x, lineCov = result.hess_inv, zLine = detectors[-1])
+    seedState = State(line = result.x, lineCov = 9*result.hess_inv, zLine = detectors[-1])
     recoState = State.filter(seedState, reversed(hits))
     return recoState, truthState
