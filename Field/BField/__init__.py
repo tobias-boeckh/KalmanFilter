@@ -15,7 +15,7 @@ rMin = 0.104
 rMax = rMin + 0.0825
 zMax = [1.5, 1.0, 1.0]
 magnetZ = [-0.81232, 0.637726, 1.837726]
-m0 = 1.04                                           # mag
+m0 = 1.00                                           # mag
 sectorPhi = np.linspace(0, 2*pi, 17, True)       # central phi value for each sector
 magPhi = 2 * sectorPhi                              # angle of the magnitization in each sector
 phiConst = 4 * sqrt(2 - sqrt(2))                    # numerical result of phiPrime integration on curved surface
@@ -110,11 +110,11 @@ def field(rho, phi, z, L):
     fieldCylPhi = lambda k : -cylDphi(rho, phi, z, rMin, L, k) + cylDphi(rho, phi, z, rMax, L, k)
     fieldPlanePhi = lambda rhoPrime : sum(list(map(lambda j : planeDphi(rho, phi, z, j, L, rhoPrime), range(16))))
     
-    fieldCylZ = lambda k : -cylDz(rho, phi, z, rMin, L, k) + cylDphi(rho, phi, z, rMax, L, k)
+    fieldCylZ = lambda k : -cylDz(rho, phi, z, rMin, L, k) + cylDz(rho, phi, z, rMax, L, k)
     fieldPlaneZ = lambda rhoPrime : sum(list(map(lambda j : planeDz(rho, phi, z, j, L, rhoPrime), range(16))))
     myLimit = 1000    
-    return np.array([quad(fieldCylRho, 0, np.inf, limit = myLimit)[0] + quad(fieldPlaneRho, rMin, rMax, limit = myLimit)[0], \
-                     quad(fieldCylPhi, 0, np.inf, limit = myLimit)[0] + quad(fieldPlanePhi, rMin, rMax, limit = myLimit)[0], \
+    return np.array([-quad(fieldCylRho, 0, np.inf, limit = myLimit)[0] + quad(fieldPlaneRho, rMin, rMax, limit = myLimit)[0],
+                     -quad(fieldCylPhi, 0, np.inf, limit = myLimit)[0] + quad(fieldPlanePhi, rMin, rMax, limit = myLimit)[0],
                      quad(fieldCylZ, 0, np.inf, limit = myLimit)[0] + quad(fieldPlaneZ, rMin, rMax, limit = myLimit)[0]])
 
 def mField(rho, phi, z):
